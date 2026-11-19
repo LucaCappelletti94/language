@@ -6,6 +6,7 @@ import static dev.openfga.language.validation.Dsl.getTypeRestrictions;
 
 import dev.openfga.language.Utils;
 import dev.openfga.sdk.api.model.Metadata;
+import dev.openfga.sdk.api.model.ObjectRelation;
 import dev.openfga.sdk.api.model.RelationMetadata;
 import dev.openfga.sdk.api.model.TypeDefinition;
 import dev.openfga.sdk.api.model.Userset;
@@ -37,7 +38,7 @@ class EntryPointOrLoop {
             Map<String, Map<String, Boolean>> visitedRecords) {
         var visited = Utils.deepCopy(visitedRecords);
 
-        if (relationName == null) {
+        if (relationName == null || rewrite == null) {
             return BOTH_FALSE;
         }
 
@@ -104,9 +105,10 @@ class EntryPointOrLoop {
 
             return compute(typeMap, typeName, computedRelationName, computedRelation, visited);
         } else if (rewrite.getTupleToUserset() != null) {
-            var tuplesetRelationName = rewrite.getTupleToUserset().getTupleset().getRelation();
+            var tuplesetRelationName =
+                    getNullSafe(rewrite.getTupleToUserset().getTupleset(), ObjectRelation::getRelation);
             var computedRelationName =
-                    rewrite.getTupleToUserset().getComputedUserset().getRelation();
+                    getNullSafe(rewrite.getTupleToUserset().getComputedUserset(), ObjectRelation::getRelation);
             if (tuplesetRelationName == null || computedRelationName == null) {
                 return BOTH_FALSE;
             }

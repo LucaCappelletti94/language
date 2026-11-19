@@ -108,7 +108,7 @@ function allowableTypes(typeName: Record<string, TypeDefinition>, type: string, 
   const allowedTypes: string[] = [];
   const currentRelations = typeName[type].relations![relation];
   const currentRelationMetadata = getTypeRestrictions(
-    typeName[type].metadata?.relations![relation].directly_related_user_types || [],
+    typeName[type].metadata?.relations?.[relation]?.directly_related_user_types || [],
   );
 
   const isValid = relationIsSingle(currentRelations);
@@ -150,14 +150,14 @@ function hasEntryPointOrLoop(
   typeMap: Record<string, TypeDefinition>,
   typeName: string,
   relationName: string | undefined,
-  rewrite: Userset,
+  rewrite: Userset | undefined,
   visitedRecords: Record<string, Record<string, boolean>>,
 ): { hasEntry: boolean; loop: boolean } {
   // Deep copy
   const visited = deepCopy(visitedRecords);
 
-  if (!relationName) {
-    // nothing to do if relation is undefined
+  if (!relationName || !rewrite) {
+    // nothing to do if relation or rewrite is undefined
     return { hasEntry: false, loop: false };
   }
 
@@ -186,7 +186,7 @@ function hasEntryPointOrLoop(
         return { hasEntry: true, loop: false };
       }
 
-      const assignableRelation = typeMap[decodedType].relations![decodedRelation];
+      const assignableRelation = typeMap[decodedType].relations?.[decodedRelation];
       if (!assignableRelation) {
         return { hasEntry: false, loop: false };
       }
@@ -224,8 +224,8 @@ function hasEntryPointOrLoop(
 
     return hasEntryPointOrLoop(typeMap, typeName, computedRelationName, computedRelation, visited);
   } else if (rewrite.tupleToUserset) {
-    const tuplesetRelationName = rewrite.tupleToUserset.tupleset.relation;
-    const computedRelationName = rewrite.tupleToUserset.computedUserset.relation;
+    const tuplesetRelationName = rewrite.tupleToUserset.tupleset?.relation;
+    const computedRelationName = rewrite.tupleToUserset.computedUserset?.relation;
 
     if (!tuplesetRelationName || !computedRelationName) {
       return { hasEntry: false, loop: false };
@@ -239,7 +239,7 @@ function hasEntryPointOrLoop(
     for (const assignableType of getTypeRestrictions(
       relationMetadata?.[tuplesetRelationName]?.directly_related_user_types || [],
     )) {
-      const assignableRelation = typeMap[assignableType].relations![computedRelationName];
+      const assignableRelation = typeMap[assignableType].relations?.[computedRelationName];
       if (assignableRelation) {
         if (visited[assignableType] && visited[assignableType][computedRelationName]) {
           continue;
@@ -261,7 +261,7 @@ function hasEntryPointOrLoop(
   } else if (rewrite.union) {
     let hasLoop = false;
 
-    for (const child of rewrite.union.child) {
+    for (const child of rewrite.union.child || []) {
       const { hasEntry, loop } = hasEntryPointOrLoop(typeMap, typeName, relationName, child, deepCopy(visited));
       if (hasEntry) {
         return { hasEntry: true, loop: false };
@@ -270,7 +270,7 @@ function hasEntryPointOrLoop(
     }
     return { hasEntry: false, loop: hasLoop };
   } else if (rewrite.intersection) {
-    for (const child of rewrite.intersection.child) {
+    for (const child of rewrite.intersection.child || []) {
       const { hasEntry, loop } = hasEntryPointOrLoop(typeMap, typeName, relationName, child, deepCopy(visited));
       if (!hasEntry) {
         return { hasEntry: false, loop };
@@ -401,7 +401,10 @@ function checkForDuplicatesInRelation(
   relationName: string,
   lines?: string[],
 ) {
-  const relationDef = typeDef.relations![relationName];
+  const relationDef = typeDef.relations?.[relationName];
+  if (!relationDef) {
+    return;
+  }
   const file = typeDef.metadata?.source_info?.file;
   const module = typeDef.metadata?.module;
 
@@ -430,9 +433,9 @@ function checkForDuplicatesInRelation(
   });
 
   // Difference
-  if (Object.prototype.hasOwnProperty.call(relationDef, RelationDefOperator.Difference)) {
-    const baseName = getRelationDefName(relationDef.difference!.base);
-    const subtractName = getRelationDefName(relationDef.difference!.subtract);
+  if (relationDef.difference?.base && relationDef.difference.subtract) {
+    const baseName = getRelationDefName(relationDef.difference.base);
+    const subtractName = getRelationDefName(relationDef.difference.subtract);
     if (baseName && baseName === subtractName) {
       const typeIndex = getTypeLineNumber(typeDef.type, lines);
       const lineIndex = getRelationLineNumber(relationName, lines, typeIndex);
@@ -456,7 +459,7 @@ function childDefDefined(
     return;
   }
 
-  const currentRelationMetadata = typeMap[type].metadata?.relations![relation];
+  const currentRelationMetadata = typeMap[type].metadata?.relations?.[relation];
   let file = currentRelationMetadata?.source_info?.file;
   if (!file) {
     file = typeMap[type].metadata?.source_info?.file;
@@ -509,7 +512,7 @@ function childDefDefined(
           const lineIndex = getRelationLineNumber(relation, lines, typeIndex);
           collector.raiseAssignableTypeWildcardRelation(item, type, relation, { file, module }, lineIndex);
         } else if (decodedRelation) {
-          if (!typeMap[decodedType] || !typeMap[decodedType].relations![decodedRelation]) {
+          if (!typeMap[decodedType] || !typeMap[decodedType].relations?.[decodedRelation]) {
             // type/relation is not defined
             const typeIndex = getTypeLineNumber(type, lines);
             const lineIndex = getRelationLineNumber(relation, lines, typeIndex);
@@ -577,7 +580,7 @@ function childDefDefined(
                 collector.raiseTupleUsersetRequiresDirect(childDef.from, type, relation, { file, module }, lineIndex);
               } else {
                 // check to see if the relation is defined in any children
-                if (!typeMap[decodedType] || !typeMap[decodedType].relations![childDef.target]) {
+                if (!typeMap[decodedType] || !typeMap[decodedType].relations?.[childDef.target]) {
                   const typeIndex = getTypeLineNumber(type, lines);
                   const lineIndex = getRelationLineNumber(relation, lines, typeIndex);
                   childRelationNotValid.push({
@@ -643,12 +646,13 @@ function relationDefined(
   while (children.length) {
     const child = children.shift();
 
-    if (child?.union?.child.length) {
-      children.push(...child.union.child);
-    } else if (child?.intersection?.child.length) {
-      children.push(...child.intersection.child);
-    } else if (child?.difference?.base && child.difference.subtract) {
-      children.push(child?.difference?.base, child.difference.subtract);
+    if (child?.union) {
+      children.push(...(child.union.child || []));
+    } else if (child?.intersection) {
+      children.push(...(child.intersection.child || []));
+    } else if (child?.difference) {
+      const { base, subtract } = child.difference;
+      children.push(...[base, subtract].filter((operand): operand is Userset => !!operand));
     } else if (child) {
       childDefDefined(collector, typeMap, type, relation, getRelationalParserResult(child), conditions, lines);
     }
@@ -731,7 +735,7 @@ function modelValidation(
       // parse through each of the relations to do validation
       for (const relationName in typeDef.relations) {
         const currentRelation = typeMap[typeName].relations;
-        const currentRelationMetadata = typeDef.metadata?.relations![relationName];
+        const currentRelationMetadata = typeDef.metadata?.relations?.[relationName];
 
         let file = currentRelationMetadata?.source_info?.file;
         if (!file) {

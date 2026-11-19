@@ -223,6 +223,9 @@ public class ModelValidator {
 
     private void checkForDuplicatesInRelation(TypeDefinition typeDef, String relationName) {
         var relationDef = typeDef.getRelations().get(relationName);
+        if (relationDef == null) {
+            return;
+        }
 
         // Union
         var relationUnionNameSet = new HashSet<String>();
@@ -249,9 +252,10 @@ public class ModelValidator {
         });
 
         // Difference
-        if (relationDef.getDifference() != null) {
-            var baseName = getRelationDefName(relationDef.getDifference().getBase());
-            var substractName = getRelationDefName(relationDef.getDifference().getSubtract());
+        var difference = relationDef.getDifference();
+        if (difference != null && difference.getBase() != null && difference.getSubtract() != null) {
+            var baseName = getRelationDefName(difference.getBase());
+            var substractName = getRelationDefName(difference.getSubtract());
             if (baseName != null && baseName.equals(substractName)) {
                 var typeIndex = dsl.getTypeLineNumber(typeDef.getType());
                 var lineIndex = dsl.getRelationLineNumber(relationName, typeIndex);
@@ -291,11 +295,13 @@ public class ModelValidator {
                 children.addAll(child.getUnion().getChild());
             } else if (child.getIntersection() != null) {
                 children.addAll(child.getIntersection().getChild());
-            } else if (child.getDifference() != null
-                    && child.getDifference().getBase() != null
-                    && child.getDifference().getSubtract() != null) {
-                children.add(child.getDifference().getBase());
-                children.add(child.getDifference().getSubtract());
+            } else if (child.getDifference() != null) {
+                if (child.getDifference().getBase() != null) {
+                    children.add(child.getDifference().getBase());
+                }
+                if (child.getDifference().getSubtract() != null) {
+                    children.add(child.getDifference().getSubtract());
+                }
             } else {
                 childDefDefined(typeMap, typeName, relationName, getRelationalParserResult(child));
             }
@@ -447,8 +453,9 @@ public class ModelValidator {
         var typeDefinition = typeMap.get(typeName);
         var currentRelation = typeDefinition.getRelations().get(relation);
         var metadata = typeDefinition.getMetadata();
-        Collection<RelationReference> relatedTypes =
-                metadata != null ? metadata.getRelations().get(relation).getDirectlyRelatedUserTypes() : emptyList();
+        Collection<RelationReference> relatedTypes = metadata != null
+                ? getNullSafeList(metadata.getRelations().get(relation), RelationMetadata::getDirectlyRelatedUserTypes)
+                : emptyList();
         var currentRelationMetadata = getTypeRestrictions(relatedTypes);
         var isValid = isRelationSingle(currentRelation);
         if (isValid) {

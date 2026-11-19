@@ -191,3 +191,468 @@
       metadata:
         symbol: "core.fga"
         errorType: multiple-modules-in-file
+
+- name: metadata for a relation the type does not define
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {},
+          "metadata": {
+            "relations": {
+              "orphan": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+
+- name: tuple to userset without tupleset
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "tupleToUserset": {
+                "computedUserset": {}
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`viewer` is an impossible relation for `document` (no entrypoint)."
+      metadata:
+        symbol: "viewer"
+        errorType: relation-no-entry-point
+
+- name: difference without subtract
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "difference": {
+                "base": {
+                  "this": {}
+                }
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`viewer` is an impossible relation for `document` (no entrypoint)."
+      metadata:
+        symbol: "viewer"
+        errorType: relation-no-entry-point
+
+- name: tuple to userset without computed userset
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "tupleToUserset": {
+                "tupleset": {
+                  "relation": "viewer"
+                }
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`viewer` is an impossible relation for `document` (no entrypoint)."
+      metadata:
+        symbol: "viewer"
+        errorType: relation-no-entry-point
+
+- name: difference without base
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "difference": {
+                "subtract": {
+                  "this": {}
+                }
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`viewer` is an impossible relation for `document` (no entrypoint)."
+      metadata:
+        symbol: "viewer"
+        errorType: relation-no-entry-point
+
+- name: union without child
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "union": {}
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`viewer` is an impossible relation for `document` (no entrypoint)."
+      metadata:
+        symbol: "viewer"
+        errorType: relation-no-entry-point
+
+- name: intersection without child
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "intersection": {}
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+
+- name: metadata without relations
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "computedUserset": {
+                "relation": "viewer"
+              }
+            }
+          },
+          "metadata": {}
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`viewer` is an impossible relation for `document` (potential loop)."
+      metadata:
+        symbol: "viewer"
+        errorType: relation-no-entry-point
+
+- name: tupleset relation without metadata
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "owner": {
+              "this": {}
+            },
+            "parent": {
+              "computedUserset": {
+                "relation": "owner"
+              }
+            },
+            "viewer": {
+              "tupleToUserset": {
+                "tupleset": {
+                  "relation": "parent"
+                },
+                "computedUserset": {
+                  "relation": "viewer"
+                }
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "owner": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`parent` relation used inside from allows only direct relation."
+      metadata:
+        symbol: "parent"
+        errorType: tupleuserset-not-direct
+
+- name: type restriction on a relation of a type without relations
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "viewer": {
+              "this": {}
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user",
+                    "relation": "member"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "`member` is not a valid relation for `user`."
+      metadata:
+        symbol: "user#member"
+        errorType: invalid-relation-type
+
+- name: tuple to userset through a type without relations
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "document",
+          "relations": {
+            "parent": {
+              "this": {}
+            },
+            "viewer": {
+              "tupleToUserset": {
+                "tupleset": {
+                  "relation": "parent"
+                },
+                "computedUserset": {
+                  "relation": "viewer"
+                }
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "parent": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  expected_errors:
+    - msg: "the `viewer` relation definition on type `document` is not valid: `viewer` does not exist on `parent`, which is of type `user`."
+      metadata:
+        symbol: "viewer from parent"
+        errorType: invalid-relation-on-tupleset
+
+- name: tuple to userset through a type without relations and a type with it
+  json: |
+    {
+      "schema_version": "1.1",
+      "type_definitions": [
+        {
+          "type": "user"
+        },
+        {
+          "type": "folder",
+          "relations": {
+            "viewer": {
+              "this": {}
+            }
+          },
+          "metadata": {
+            "relations": {
+              "viewer": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "document",
+          "relations": {
+            "parent": {
+              "this": {}
+            },
+            "viewer": {
+              "tupleToUserset": {
+                "tupleset": {
+                  "relation": "parent"
+                },
+                "computedUserset": {
+                  "relation": "viewer"
+                }
+              }
+            }
+          },
+          "metadata": {
+            "relations": {
+              "parent": {
+                "directly_related_user_types": [
+                  {
+                    "type": "user"
+                  },
+                  {
+                    "type": "folder"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
